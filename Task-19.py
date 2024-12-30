@@ -1,6 +1,6 @@
 """
  Name : Harish kumar
- Date : 09-Oct-2024
+ Date : 30-dec-2024
  Program 1 : Using data driven testing framework,page object model,explicit wait,expected conditions,pytest
 1.Create a excel file which comprises test id,username,password,time,time of test,tester name,test results for login in to portal
 2.https://opensource-demo.orangehrmlive.com/web/index.php/auth/login
@@ -9,98 +9,135 @@
 5.Do not use sleep().
  """
 
-#page object model(POM)
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 
-class LoginPage:
-    def __init__(self, driver):
-        self.driver = driver
-        self.username_field = (By.NAME, "username")
-        self.password_field = (By.NAME, "password")
-        self.login_button = (By.XPATH, "//button[@type='submit']")
 
-    def enter_username(self, username):
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located(self.username_field)).clear()
-        self.driver.find_element(*self.username_field).send_keys(username)
+class WebData:
+   url = "https://opensource-demo.orangehrmlive.com/auth/login"
+   dashboard_url = "https://opensource-demo.orangehrmlive.com/dashboard/index"
+   excel_file = "C:\\Users\\Dell\\AppData\\Roaming\\Microsoft\\Windows\\Network%20Shortcuts\\test_data.xlsx"
+   sheet_number = "Sheet1"
 
-    def enter_password(self, password):
-        WebDriverWait(self.driver, 10).until(
-            EC.visibility_of_element_located(self.password_field)).clear()
-        self.driver.find_element(*self.password_field).send_keys(password)
 
-    def click_login(self):
-        WebDriverWait(self.driver, 10).until(
-            EC.element_to_be_clickable(self.login_button)).click()
+"""
+Locators.py
+"""
 
-    def is_login_successful(self):
-        try:
-            WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located((By.XPATH, "//span[text()='Dashboard']")))
-            return True
-        except:
-            return False
 
-#Pytest
-import pytest
-import openpyxl
+class Test_Locators:
+   username_locator ="username"
+   password_locator = "password"
+   submit_button = "//button[@type='submit']"
+   logout_button = '//*[@id="app"]/div[1]/div[1]/header/div[1]/div[2]/ul/li/span/p'
+
+
+
+""""
+excel functions
+"""
+from openpyxl import load_workbook
+
+
+class harishExcelFunctions:
+
+
+   def __init__(self, file_name, sheet_name):
+       self.file = file_name
+       self.sheet = sheet_name
+
+
+   # Fetch the total row count from Excel sheet
+   def row_count(self):
+       workbook = load_workbook(self.file)
+       sheet = workbook[self.sheet]
+       return sheet.max_row
+
+
+   # Fetch the total column count from the Excel sheet
+   def column_count(self):
+       workbook = load_workbook(self.file)
+       sheet = workbook[self.sheet]
+       return sheet.max_column
+
+
+   # Read the data from Excel sheet of specific Row and Column
+   def read_data(self, row_number, column_number):
+       workbook = load_workbook(self.file)
+       sheet = workbook[self.sheet]
+       return sheet.cell(row=row_number, column=column_number).value
+
+
+   # Write the data into an Excel sheet on a specific Row and Column
+   def write_data(self, row_number, column_number, data):
+       workbook = load_workbook(self.file)
+       sheet = workbook[self.sheet]
+       sheet.cell(row=row_number, column=column_number).value = data
+       workbook.save(self.file)
+
+
+"""
+main.py
+"""
 from selenium import webdriver
-from page_objects.login_page import LoginPage
-from datetime import datetime
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.action_chains import ActionChains
+from Locators import Test_Locators
+from Data import WebData
+from ExcelFunctions import harishExcelFunctions
 
-# data from Excel
-def load_test_data(file_name):
-    workbook = openpyxl.load_workbook(file_name)
-    sheet = workbook.active
-    test_data = []
-    for row in range(2, sheet.max_row + 1):
-        test_data.append({
-            'test_id': sheet.cell(row, 1).value,
-            'username': sheet.cell(row, 2).value,
-            'password': sheet.cell(row, 3).value,
-            'time': sheet.cell(row, 4).value,
-            'tester_name': sheet.cell(row, 5).value
-        })
-    return test_data, workbook, sheet
 
-# test result in Excel
-def write_test_result(sheet, row, result, workbook):
-    sheet.cell(row, 6).value = result
-    workbook.save('test_data.xlsx')
+excel_file = WebData().excel_file
 
-# pytest fixture for setup
-@pytest.fixture
-def setup():
-    driver = webdriver.Chrome()  # Make sure to download ChromeDriver
-    driver.get('https://opensource-demo.orangehrmlive.com/web/index.php/auth/login')
-    driver.maximize_window()
-    yield driver
-    driver.quit()
 
-# Test case for login
-@pytest.mark.parametrize("test_case", load_test_data('test_data.xlsx')[0])
-def test_login(test_case, setup):
-    driver = setup
-    login_page = LoginPage(driver)
+sheet_number = WebData().sheet_number
 
-    # username and password from test case
-    username = test_case['username']
-    password = test_case['password']
 
-    # Perform login actions
-    login_page.enter_username(username)
-    login_page.enter_password(password)
-    login_page.click_login()
+harish = harishExcelFunctions(excel_file, sheet_number)
 
-    # Check if login was successful
-    if login_page.is_login_successful():
-        result = 'PASS'
-    else:
-        result = 'FAIL'
 
-    # Write test result back to Excel
-    data, workbook, sheet = load_test_data('test_data.xlsx')
-    write_test_result(sheet, test_case['test_id'] + 1, result, workbook)
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
+
+driver.maximize_window()
+
+
+driver.get(WebData().url)
+
+
+driver.implicitly_wait(10)
+
+
+rows = harish.row_count()
+
+
+for row in range(2, rows+1):
+   username = harish.read_data(row, 6)
+   password = harish.read_data(row, 7)
+
+
+   driver.find_element(by=By.NAME, value=Test_Locators().username_locator).send_keys(username)
+   driver.find_element(by=By.NAME, value=Test_Locators().password_locator).send_keys(password)
+   driver.find_element(by=By.XPATH, value=Test_Locators().submit_button).click()
+
+
+   driver.implicitly_wait(10)
+
+
+   # Main Validation of the TEST CASE either PASS or FAIL is going to happen
+   if WebData().dashboard_url in driver.current_url:
+       print("SUCCESS : Login success")
+       harish.write_data(row, 8, "TEST PASS")
+       action = ActionChains(driver)
+       action.click(on_element=Test_Locators().logout_button)
+       action.perform()
+       driver.find_element(by=By.LINK_TEXT, value='Logout').click()
+
+
+   elif WebData().url in driver.current_url:
+       print("FAIL : Login failed")
+       harish.write_data(row, 8, "TEST FAIL")
+       driver.back()
+
+
+driver.quit()
